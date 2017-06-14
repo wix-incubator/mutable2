@@ -1,13 +1,11 @@
 var path = require('path');
-var glob = require("glob");
-var testsPattern = path.join(__dirname, 'dist', 'test', '**', '*.spec.js');
 
 module.exports = {
     context: __dirname,
     devtool: 'eval',
     entry: {
-        'test' : glob.sync(testsPattern),
-        'webtest' : ['mocha!'+ testsPattern]
+        'test' : path.join(__dirname, 'dist', 'test', 'all-specs.js'),
+        'webtest' : ['mocha!'+ path.join(__dirname, 'dist', 'test', 'all-specs.js')]
     },
     output: {
         path: path.join(__dirname, 'dist'),
@@ -23,7 +21,7 @@ module.exports = {
     devServer: {
         contentBase: path.join(__dirname, 'dist'),
         inline: true,
-        hot: true
+        hot: false
     },
     module: {
         loaders: [],
