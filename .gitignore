@@ -39,3 +39,5 @@ dist
 .vscode
 
 .idea
+src/*.js
+test/*.js

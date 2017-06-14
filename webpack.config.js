@@ -13,11 +13,6 @@ module.exports = {
         libraryTarget: 'umd',
         pathinfo: true
     },
-    resolve: {
-        alias: {
-            mutable2: path.join(__dirname, 'dist', 'src')
-        }
-    },
     devServer: {
         contentBase: path.join(__dirname, 'dist'),
         inline: true,

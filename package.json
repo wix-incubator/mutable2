@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "tsc -d",
-    "build:watch": "tsc -d -w",
+    "build:watch": "tsc -w",
     "bundle": "webpack --progress",
     "pretest": "npm run clean && npm run build && npm run bundle",
     "test": "npm run test:node && npm run test:browser",
@@ -49,6 +49,8 @@
   "devDependencies": {
     "@types/chai": "4.0.0",
     "@types/mocha": "2.2.41",
+    "@types/sinon": "2.3.1",
+    "@types/sinon-chai": "2.7.28",
     "chai": "3.5.0",
     "chai-subset": "1.5.0",
     "concurrently": "3.4.0",
@@ -60,6 +62,8 @@
     "mocha-env-reporter": "2.0.4",
     "mocha-loader": "1.1.1",
     "rimraf": "2.6.1",
+    "sinon": "2.3.4",
+    "sinon-chai": "2.11.0",
     "source-map-support": "0.4.15",
     "ts-loader": "2.1.0",
     "typescript": "2.3.4",
@@ -71,7 +75,8 @@
   },
   "dependencies": {
     "ifndef": "0.0.19",
-    "mobx": "3.1.15"
+    "mobx": "3.1.15",
+    "tslib": "1.7.1"
   },
   "optionalDependencies": {
     "bufferutil": "1.2.1",
