@@ -1,2 +1,2 @@
 # mutable2
-a mobx objects library
+A mobx objects library.
