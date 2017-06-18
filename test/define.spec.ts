@@ -1,37 +1,38 @@
 import {expect} from 'chai';
 import {spy, Lambda, Reaction, isObservableObject, extras} from 'mobx';
 import * as sinon from 'sinon';
-import {config, Class, MobxObj, defineClass} from '../src';
+import {config, extendOProto} from '../src';
+import {Class, MobxObj} from "../src/object-structure";
 
 type Child = { foo: number, bar: number };
 
-describe('observable', () => {
+describe('observable3', () => {
     let Child: Class<Child>;
     let child: Child;
 
-    before(() => {
-        @defineClass<Parent>(['foo'])
+    beforeEach(() => {
         class Parent {
             foo: number
         }
-        @defineClass<Child>(['bar'])
+        extendOProto(Parent, 'foo');
+
         class _Child extends Parent {
             bar: number
         }
         Child = _Child;
-    });
-    beforeEach(() => {
+        extendOProto(Child, 'bar');
         child = new Child();
     });
 
     it('preserves constructor', () => {
-        @defineClass<Foo>(['foo'])
         class Foo {
             foo = 6;
             constructor(spy: Function) {
                 spy(this);
             }
         }
+        extendOProto(Foo, 'foo');
+
         const mySpy = sinon.spy();
         const inst = new Foo(mySpy);
         expect(inst.foo).to.eql(6);
@@ -39,9 +40,20 @@ describe('observable', () => {
         expect(mySpy).to.have.been.calledWith(inst);
 
     });
-
+    it('each instance tracked separately', () => {
+        let reaction =  new Reaction('obj', () => {
+        });
+        const child2 = new Child();
+        reaction.track(() => {
+            child.foo;
+            child2.foo;
+        });
+        expect(reaction.observing.length).to.eql(2);
+        reaction.dispose();
+    });
     const trackingActionsContract = () => {
         let reaction: Reaction;
+
         beforeEach(() => {
             reaction = new Reaction('obj', () => {
             });
@@ -71,6 +83,7 @@ describe('observable', () => {
             });
             assertReaction();
         });
+
     };
     describe('tracks', trackingActionsContract);
     describe('(when config.observable is false) does not track', () => {
@@ -107,7 +120,6 @@ describe('observable', () => {
             expect(fooSpy).to.have.been.callCount(1);
         });
     });
-
     describe('does not trigger mobx reaction as a result of', () => {
         let objSpy: sinon.SinonSpy, reaction: Reaction;
         beforeEach(() => {
@@ -126,7 +138,6 @@ describe('observable', () => {
             expect(objSpy).to.have.been.callCount(1);
         });
     });
-
     describe('reports to mobx spy and observer on', () => {
         let spyListener: (change: any) => void;
         let observeListener: (change: any) => void;

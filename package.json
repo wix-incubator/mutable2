@@ -11,8 +11,10 @@
     "bundle": "webpack --progress",
     "pretest": "npm run clean && npm run build && npm run bundle",
     "test": "npm run test:node && npm run test:browser",
-    "test:node": "mocha --reporter mocha-env-reporter dist/test/*.spec.js",
+    "test:node": "mocha --require dist/test/setup.js --require source-map-support/register --reporter mocha-env-reporter dist/test/*.spec.js",
     "test:browser": "karma start --single-run",
+    "test:private": "mocha --require dist/test/setup.js --require source-map-support/register --reporter mocha-env-reporter dist/test/benchmarks.js",
+    "reset": "rimraf ./node_modules ./dist && npm install && npm test",
     "start": "npm run clean && npm run build && concurrently --kill-others --success first 'npm run build:watch' 'webpack-dev-server --no-info'"
   },
   "homepage": "https://github.com/wix/kissfs#readme",
@@ -47,13 +49,16 @@
     "Amir Arad <amira@wix.com> (http://github.com/amir-arad)"
   ],
   "devDependencies": {
+    "@types/benchmark": "1.0.30",
     "@types/chai": "4.0.0",
     "@types/mocha": "2.2.41",
     "@types/sinon": "2.3.1",
     "@types/sinon-chai": "2.7.28",
+    "benchmark": "2.1.4",
     "chai": "3.5.0",
     "chai-subset": "1.5.0",
     "concurrently": "3.4.0",
+    "glob": "7.1.2",
     "karma": "1.7.0",
     "karma-chrome-launcher": "2.1.1",
     "karma-env-reporter": "1.0.13",
@@ -65,8 +70,7 @@
     "sinon": "2.3.4",
     "sinon-chai": "2.11.0",
     "source-map-support": "0.4.15",
-    "ts-loader": "2.1.0",
-    "typescript": "2.3.4",
+    "typescript": "2.4.0",
     "webpack": "1.14.0",
     "webpack-dev-server": "1.16.2"
   },
@@ -77,9 +81,5 @@
     "ifndef": "0.0.19",
     "mobx": "3.1.15",
     "tslib": "1.7.1"
-  },
-  "optionalDependencies": {
-    "bufferutil": "1.2.1",
-    "utf-8-validate": "1.2.1"
   }
 }

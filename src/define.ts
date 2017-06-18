@@ -1,115 +1,120 @@
-import {BaseAtom, observable, extras} from 'mobx';
-import {__extends} from "tslib";
-import config from './config';
+import {extras, BaseAtom} from 'mobx';
+import config from "./config";
+import {Class, MutableObj, MutableObjectAdministrator} from "./object-structure";
 
-export type DeepPartial<T> = {
-    [P in keyof T]?:DeepPartial<T[P]> | null;
-    };
-
-export interface ObjectAdministrator<T> {
-    name: string;
-    atoms: {readonly [ P in keyof T]?: BaseAtom };
-}
-
-export type MobxObj<T> = T & {
-    /** @internal */
-    $mobx: ObjectAdministrator<T>;
-    getName(): string;
-};
-
-export type MutableObj<T> = MobxObj<T> & {
-    __value__: T;
-};
-
-class MutableObjectAdministrator<T> implements ObjectAdministrator<T> {
-    atoms: { [ P in keyof T]?: BaseAtom } = {};
-
-    constructor(public name: string) {
-    }
-}
-(MutableObjectAdministrator.prototype as any)["isMobXObservableObjectAdministration"] = true;
-
-export type Constructor<T> = new(...args: any[]) => T;
-
-export interface Class<T> extends Constructor<T> {
-    /** @internal */
-    prototype: T;
-    new(value?: DeepPartial<T>): T;
-}
-
-const symbolNameRegExp = /^(?:[\$A-Z_a-z])(?:[\$0-9A-Z_a-z])*$/;
-
-function symbolFilter(name: string) {
-    return symbolNameRegExp.test(name);
-}
-
-function safeSymbol(name: string): string {
-    return symbolNameRegExp.test(name) ? name : 'Type';
-}
-
-function getName(this: object) {
+function getNameFromConstructor(this:object){
     return this.constructor.name;
 }
-
-export function inherit<R extends Constructor<T>, T extends object>(name: string, fields: Array<keyof T>, Base: R): R {
-    const Type = new Function('parent', 'Admin', 'Atom', `return function ${name}() {    
-    this && (this.__value__ = this.__value__ || {});
-    this && (this.$mobx = this.$mobx || new Admin(this.constructor.name));
-    ${fields.filter(symbolFilter).map((key: string) => `this.$mobx.atoms['${key}'] = new Atom('['+this.constructor.name+'].${key}');`)}
-    const _this = parent.apply(this, arguments);
-    return _this;
-    };`)(Base, MutableObjectAdministrator, BaseAtom) as any;
-    __extends(Type, Base);
-    (Type as any).__proto__ = Object.create(Base); // inherit static properties of parent's prototype
-    (Type as any).prototype.getName = getName;
-    return Type;
+function getNameUnknown(){
+    return 'anonymous';
 }
-
-export function shouldAssign(a: any, b: any) {
-    return b !== undefined && a !== b && !(Number.isNaN(a) && Number.isNaN(b));
-}
-export function fieldAttribute(fieldName: string) {
-    return {
-        get: function (this: MutableObj<any>) {
-            if (config.observable) {
-                this.$mobx.atoms[fieldName].reportObserved();
-            }
-            return this.__value__[fieldName];
-        },
-        set: function (this: MutableObj<any>, newValue: any) {
-            if (shouldAssign(this.__value__[fieldName], newValue)) {
-                const notifySpy = extras.isSpyEnabled();
-                if (config.observable && notifySpy) {
-                    extras.spyReportStart({
-                        type: "update",
-                        object: this,
-                        name: fieldName,
-                        newValue,
-                        oldValue: this.__value__[fieldName]
-                    });
-                }
-                this.__value__[fieldName] = newValue;
-                if (config.observable) {
-                    this.$mobx.atoms[fieldName].reportChanged();
-                    if (notifySpy)
-                        extras.spyReportEnd();
-                }
-            }
-        },
-        enumerable: true,
-        configurable: false
-    };
-}
-
-export function defineClass<T = object>(fields: Array<keyof T>): ClassDecorator;
-export function defineClass<T extends object>(fields: Array<keyof T>): ClassDecorator {
-    return function actualDecorator(Base: Constructor<T>): Class<T> {
-        const name = safeSymbol(Base.name);
-        const type = inherit<typeof Base, T>(name, fields, Base);
-        for (let x = 0; x < fields.length; x++) {
-            const key = fields[x];
-            Object.defineProperty(type.prototype, key, fieldAttribute(key));
+function defineMobxAdmin<T extends object>(ctx:MutableObj<T>) {
+    if (typeof ctx.getName !== 'function'){
+        if (ctx.constructor && typeof ctx.constructor.name === 'string'){
+            ctx.getName = getNameFromConstructor;
+        } else {
+            // todo more ways to define a name
+            ctx.getName = getNameUnknown;
         }
-        return type as any;
+    }
+    Object.defineProperty(ctx, '$mobx', {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: new MutableObjectAdministrator(ctx.getName())
+    });
+    Object.defineProperty(ctx, '__value__', {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: {}
+    });
+}
+
+function defineMobxValue<T extends object>(ctx:MutableObj<T>, name:keyof T) {
+    ctx.$mobx.atoms[name] = new BaseAtom(`[${ctx.$mobx.name}].${name}`);
+}
+
+function checkAdmin<T extends object>(ctx:MutableObj<T>, name:keyof T){
+    if(!ctx.$mobx){defineMobxAdmin(ctx)}
+    if(!ctx.$mobx.atoms[name]){defineMobxValue(ctx, name)}
+}
+
+function getterAdmin<T extends object>(ctx:MutableObj<T>, name:keyof T){
+    if (config.observable) {
+        (ctx.$mobx.atoms[name] as BaseAtom).reportObserved();
+    }
+    return ctx.__value__[name];
+}
+
+function setterAdmin<T extends object>(ctx:MutableObj<T>, name:keyof T, newValue:any){
+    const notifySpy = extras.isSpyEnabled();
+    if (config.observable && notifySpy) {
+        extras.spyReportStart({
+            type: "update",
+            object: ctx,
+            name,
+            newValue,
+            oldValue: ctx.__value__[name]
+        });
+    }
+    ctx.__value__[name] = newValue;
+    if (config.observable) {
+        (ctx.$mobx.atoms[name] as BaseAtom).reportChanged();
+        if (notifySpy)
+            extras.spyReportEnd();
+    }
+}
+
+const prototypeAdminProperty = {
+    enumerable: false,
+    configurable: false,
+    get(this:MutableObj<any>){
+        defineMobxAdmin(this);
+        return this.$mobx;
+    },
+    set(this:MutableObj<any>){
+        defineMobxAdmin(this);
+    }
+};
+const prototypeValueProperty = {
+    enumerable: false,
+    configurable: false,
+    get(this:MutableObj<any>){
+        defineMobxAdmin(this);
+        return this.__value__;
+    },
+    set(this:MutableObj<any>, newValue:any){
+        defineMobxAdmin(this);
+        return this.__value__ = newValue;
+    }
+};
+
+export function extendOProto<T extends object, V>(Class:Class<T>, name:keyof T){
+    type UnsafeT = MutableObj<T>;
+    let adminDescriptor = Object.getOwnPropertyDescriptor(Class.prototype, '$mobx');
+    if (!adminDescriptor){
+        // tricky: define initializer accessors in prototype for the internal structure
+        // so that the object always looks like a mobx object (dev-tools etc.)
+        Object.defineProperty(Class.prototype, '$mobx', prototypeAdminProperty);
+        Object.defineProperty(Class.prototype, '__value__', prototypeValueProperty);
+    }
+
+    function get(this:UnsafeT){
+        checkAdmin(this, name);
+        return getterAdmin(this, name);
+    }
+
+    function set(this:UnsafeT, value:V){
+        checkAdmin(this, name);
+        return setterAdmin(this, name, value);
+    }
+
+    if (config.observable) {
+        Object.defineProperty(Class.prototype, name, {
+            get, set,
+            enumerable: true,
+            configurable: false
+        });
     }
 }
