@@ -17,7 +17,7 @@
     "reset": "rimraf ./node_modules ./dist && npm install && npm test",
     "start": "npm run clean && npm run build && concurrently --kill-others --success first 'npm run build:watch' 'webpack-dev-server --no-info'"
   },
-  "homepage": "https://github.com/wix/kissfs#readme",
+  "homepage": "https://github.com/wix/mutable2#readme",
   "repository": {
     "type": "git",
     "url": "git@github.com:wix/mutable2.git"
